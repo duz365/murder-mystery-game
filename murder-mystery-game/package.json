@@ -1,0 +1,13 @@
+{
+  "name": "murder-mystery-game",
+  "version": "1.0.0",
+  "description": "多人联机悬疑推理文字游戏",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.6.1"
+  }
+}

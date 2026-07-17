@@ -1,0 +1,19 @@
+// gameData.json 示例配置 (与server.js放在同一目录)
+{
+  "scenes": [
+    { "id": "hall", "name": "🕍 大厅" },
+    { "id": "garden", "name": "🌿 花园" },
+    { "id": "cellar", "name": "🍷 酒窖" },
+    { "id": "bedroom", "name": "🛏️ 卧室" }
+  ],
+  "clues": {
+    "hall": "倒在地上的烛台，蜡油痕迹延伸至窗边",
+    "garden": "被踩踏的玫瑰花丛，泥土里有半枚鞋印",
+    "cellar": "一瓶打翻的毒药，标签模糊",
+    "bedroom": "枕头下发现一封恐吓信"
+  },
+  "story": {
+    "title": "古堡遗案",
+    "description": "深夜古堡发生命案，每位客人都有嫌疑。仔细探索，找出真凶。"
+  }
+}

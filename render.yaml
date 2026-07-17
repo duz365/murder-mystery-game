@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: murder-mystery-game
+    runtime: node
+    repo: https://github.com/yourusername/murder-mystery-game
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production

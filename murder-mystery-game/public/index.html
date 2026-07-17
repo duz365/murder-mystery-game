@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=yes, viewport-fit=cover">
+  <title>迷雾疑云 · 联机推理游戏</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: #0b1a1f;
+      color: #d4e9e2;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 12px;
+    }
+    #app {
+      width: 100%;
+      max-width: 480px;
+      background: rgba(18, 34, 38, 0.9);
+      backdrop-filter: blur(12px);
+      border-radius: 28px;
+      border: 1px solid #2e4a4a;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .screen {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+    }
+    .screen.active {
+      display: flex;
+    }
+    h2 {
+      text-align: center;
+      font-weight: 500;
+      letter-spacing: 2px;
+      color: #b9d9c9;
+      border-bottom: 1px solid #2e5545;
+      padding-bottom: 8px;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    input, button {
+      background: #1f3833;
+      border: 1px solid #3e5e56;
+      border-radius: 40px;
+      padding: 14px 18px;
+      font-size: 16px;
+      color: #e2f0e6;
+      outline: none;
+      transition: all 0.2s;
+    }
+    input::placeholder {
+      color: #6b8b7a;
+    }
+    button {
+      background: #2c5542;
+      font-weight: 600;
+      letter-spacing: 1px;
+      cursor: pointer;
+      border: none;
+      color: #f0f7f2;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+    button:active {
+      background: #3e6e55;
+      transform: scale(0.97);
+    }
+    button:disabled {
+      background: #2a3b34;
+      color: #5e7267;
+      box-shadow: none;
+    }
+    .room-info {
+      display: flex;
+      justify-content: space-between;
+      background: #152b28;
+      border-radius: 30px;
+      padding: 8px 18px;
+      font-size: 14px;
+      align-items: center;
+    }
+    .players-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: #1b2f2c;
+      border-radius: 20px;
+      padding: 12px;
+    }
+    .player-tag {
+      background: #2d4940;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 14px;
+      color: #cfe5db;
+    }
+    .clue-area, .chat-area, .vote-area {
+      background: #1a2e2a;
+      border-radius: 24px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .clue-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .scene-btn {
+      background: #2f4b40;
+      border-radius: 30px;
+      padding: 10px 18px;
+      font-size: 15px;
+    }
+    .messages {
+      max-height: 180px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: #0f2320;
+      border-radius: 18px;
+      padding: 12px;
+      font-size: 14px;
+    }
+    .msg {
+      background: #263b33;
+      border-radius: 16px;
+      padding: 8px 12px;
+      word-break: break-word;
+    }
+    .vote-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .vote-btn {
+      background: #4a3b2f;
+    }
+    .phase-indicator {
+      text-align: center;
+      font-weight: bold;
+      background: #3e5a4c;
+      border-radius: 20px;
+      padding: 6px;
+      color: #f7ffe0;
+    }
+    hr {
+      border-color: #2e4a3a;
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- 登录界面 -->
+  <div id="loginScreen" class="screen active">
+    <h2>🔍 迷雾疑云</h2>
+    <div class="input-group">
+      <input type="text" id="nicknameInput" placeholder="输入昵称" autocomplete="off">
+      <input type="text" id="roomIdInput" placeholder="房间号 (留空创建新房间)">
+      <button id="joinBtn">进入房间</button>
+    </div>
+    <div style="font-size:13px; color:#7d9a8a; text-align:center;">房主创建房间后，分享房间号给好友</div>
+  </div>
+
+  <!-- 游戏主界面 -->
+  <div id="gameScreen" class="screen">
+    <div class="room-info">
+      <span>🏠 房间: <strong id="displayRoomId"></strong></span>
+      <span id="playerCount">👥 0人</span>
+    </div>
+    <div class="players-list" id="playersContainer"></div>
+    <div class="phase-indicator" id="phaseDisplay">⏳ 等待开始...</div>
+    
+    <!-- 探索阶段 -->
+    <div id="explorePhase" class="clue-area" style="display:none;">
+      <div><strong>🔎 探索现场</strong></div>
+      <div class="clue-buttons" id="sceneButtons"></div>
+      <div id="discoveredClue" style="font-style:italic; color:#c7b79e; margin-top:6px;"></div>
+    </div>
+
+    <!-- 讨论阶段 -->
+    <div id="discussPhase" class="chat-area" style="display:none;">
+      <div><strong>💬 自由讨论</strong></div>
+      <div class="messages" id="chatMessages"></div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="chatInput" placeholder="输入推理..." style="flex:1;">
+        <button id="sendChatBtn" style="padding:12px 20px;">发送</button>
+      </div>
+    </div>
+
+    <!-- 投票阶段 -->
+    <div id="votePhase" class="vote-area" style="display:none;">
+      <div><strong>🗳️ 指认凶手</strong></div>
+      <div class="vote-options" id="voteButtons"></div>
+      <div id="voteResultMsg" style="color:#dbbb7a;"></div>
+    </div>
+
+    <button id="leaveRoomBtn" style="background:#3d2e2b; margin-top:8px;">离开房间</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  // 全局状态
+  const appState = {
+    screen: 'login', // login | game
+    nickname: '',
+    roomId: '',
+    isHost: false,
+    players: [],
+    phase: 'lobby', // lobby, explore, discuss, vote, result
+    clues: [],
+    discoveredClues: [],
+    myVote: null,
+  };
+
+  const socket = io();
+  
+  // DOM元素
+  const loginScreen = document.getElementById('loginScreen');
+  const gameScreen = document.getElementById('gameScreen');
+  const nicknameInput = document.getElementById('nicknameInput');
+  const roomIdInput = document.getElementById('roomIdInput');
+  const joinBtn = document.getElementById('joinBtn');
+  const displayRoomId = document.getElementById('displayRoomId');
+  const playerCount = document.getElementById('playerCount');
+  const playersContainer = document.getElementById('playersContainer');
+  const phaseDisplay = document.getElementById('phaseDisplay');
+  const explorePhase = document.getElementById('explorePhase');
+  const discussPhase = document.getElementById('discussPhase');
+  const votePhase = document.getElementById('votePhase');
+  const sceneButtons = document.getElementById('sceneButtons');
+  const discoveredClue = document.getElementById('discoveredClue');
+  const chatMessages = document.getElementById('chatMessages');
+  const chatInput = document.getElementById('chatInput');
+  const sendChatBtn = document.getElementById('sendChatBtn');
+  const voteButtons = document.getElementById('voteButtons');
+  const voteResultMsg = document.getElementById('voteResultMsg');
+  const leaveRoomBtn = document.getElementById('leaveRoomBtn');
+
+  // 辅助函数
+  function switchScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+    appState.screen = screenId === 'loginScreen' ? 'login' : 'game';
+  }
+
+  function updatePlayerList(players) {
+    appState.players = players;
+    playerCount.textContent = `👥 ${players.length}人`;
+    playersContainer.innerHTML = players.map(p => 
+      `<span class="player-tag">${p.nickname}${p.id === socket.id ? ' (你)' : ''}${p.isHost ? '👑' : ''}</span>`
+    ).join('');
+  }
+
+  function setPhaseUI(phase) {
+    appState.phase = phase;
+    explorePhase.style.display = 'none';
+    discussPhase.style.display = 'none';
+    votePhase.style.display = 'none';
+    
+    switch(phase) {
+      case 'explore':
+        phaseDisplay.textContent = '🔍 探索阶段 - 点击场景寻找线索';
+        explorePhase.style.display = 'flex';
+        break;
+      case 'discuss':
+        phaseDisplay.textContent = '💬 讨论阶段 - 交流发现';
+        discussPhase.style.display = 'flex';
+        break;
+      case 'vote':
+        phaseDisplay.textContent = '🗳️ 投票阶段 - 选出嫌疑人';
+        votePhase.style.display = 'flex';
+        break;
+      case 'result':
+        phaseDisplay.textContent = '🏁 游戏结束';
+        break;
+      default:
+        phaseDisplay.textContent = '⏳ 等待房主开始...';
+    }
+  }
+
+  // 渲染场景按钮 (从服务器获取配置)
+  function renderSceneButtons(scenes) {
+    if (!scenes || !Array.isArray(scenes)) return;
+    sceneButtons.innerHTML = scenes.map(scene => 
+      `<button class="scene-btn" data-scene-id="${scene.id}">${scene.name}</button>`
+    ).join('');
+    
+    document.querySelectorAll('.scene-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const sceneId = btn.dataset.sceneId;
+        socket.emit('explore', { roomId: appState.roomId, sceneId });
+      });
+    });
+  }
+
+  function renderVoteOptions(players) {
+    voteButtons.innerHTML = players.map(p => 
+      `<button class="vote-btn" data-target-id="${p.id}" ${p.id === socket.id ? 'disabled' : ''}>${p.nickname}${p.id === socket.id ? ' (自己)' : ''}</button>`
+    ).join('');
+    
+    document.querySelectorAll('.vote-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.targetId;
+        if (targetId && targetId !== socket.id) {
+          socket.emit('vote', { roomId: appState.roomId, targetId });
+          appState.myVote = targetId;
+          voteResultMsg.textContent = '✅ 已投票，等待其他人...';
+        }
+      });
+    });
+  }
+
+  function addChatMessage(msg) {
+    const div = document.createElement('div');
+    div.className = 'msg';
+    div.textContent = msg;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // Socket事件绑定
+  socket.on('connect', () => {
+    console.log('connected', socket.id);
+  });
+
+  socket.on('roomJoined', ({ roomId, players, gameState, isHost }) => {
+    appState.roomId = roomId;
+    appState.isHost = isHost;
+    displayRoomId.textContent = roomId;
+    updatePlayerList(players);
+    switchScreen('gameScreen');
+    
+    if (gameState) {
+      if (gameState.phase) setPhaseUI(gameState.phase);
+      if (gameState.scenes) renderSceneButtons(gameState.scenes);
+      if (gameState.phase === 'vote') renderVoteOptions(players);
+    }
+  });
+
+  socket.on('playerListUpdate', (players) => {
+    updatePlayerList(players);
+  });
+
+  socket.on('gameStarted', (gameState) => {
+    setPhaseUI('explore');
+    if (gameState.scenes) renderSceneButtons(gameState.scenes);
+    discoveredClue.textContent = '';
+    chatMessages.innerHTML = '';
+    voteResultMsg.textContent = '';
+  });
+
+  socket.on('clueResult', ({ clue, playerName }) => {
+    discoveredClue.textContent = `📌 ${playerName} 发现: ${clue}`;
+    addChatMessage(`[系统] ${playerName} 发现了线索: ${clue}`);
+  });
+
+  socket.on('phaseChange', ({ phase, players }) => {
+    setPhaseUI(phase);
+    if (phase === 'vote') {
+      renderVoteOptions(players || appState.players);
+      voteResultMsg.textContent = '';
+    }
+    if (phase === 'discuss') {
+      addChatMessage('[系统] 讨论阶段开始，分享你的推理。');
+    }
+  });
+
+  socket.on('chatMessage', ({ from, message }) => {
+    addChatMessage(`${from}: ${message}`);
+  });
+
+  socket.on('voteUpdate', ({ votes }) => {
+    voteResultMsg.textContent = `当前投票数: ${votes.length}/${appState.players.length}`;
+  });
+
+  socket.on('gameResult', ({ result, votes }) => {
+    setPhaseUI('result');
+    let resultText = `🔚 投票结果: ${result}`;
+    addChatMessage(`[系统] ${resultText}`);
+    voteResultMsg.textContent = resultText;
+  });
+
+  socket.on('errorMessage', (msg) => {
+    alert(msg);
+  });
+
+  // UI交互
+  joinBtn.addEventListener('click', () => {
+    const nickname = nicknameInput.value.trim();
+    if (!nickname) return alert('请输入昵称');
+    const roomId = roomIdInput.value.trim();
+    appState.nickname = nickname;
+    socket.emit('joinRoom', { nickname, roomId: roomId || null });
+  });
+
+  sendChatBtn.addEventListener('click', () => {
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+    socket.emit('chatMessage', { roomId: appState.roomId, message: msg });
+    chatInput.value = '';
+  });
+
+  leaveRoomBtn.addEventListener('click', () => {
+    socket.emit('leaveRoom', { roomId: appState.roomId });
+    switchScreen('loginScreen');
+    appState.roomId = '';
+    appState.isHost = false;
+  });
+
+  // 房主可以开始游戏 (简单起见，后端自动在2人加入且房主点击时开始，这里增加隐藏按钮逻辑)
+  // 实际通过后端控制，也可以发送start请求。为演示清晰，添加一个开始按钮动态插入。
+  // 为了方便，在后端检测房主发送'startGame'。
+  window.startGameAsHost = function() {
+    socket.emit('startGame', { roomId: appState.roomId });
+  };
+</script>
+</body>
+</html>
