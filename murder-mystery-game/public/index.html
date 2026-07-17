@@ -88,6 +88,18 @@
       color: #5e7267;
       box-shadow: none;
     }
+    .start-btn {
+      background: #c49b4a;
+      color: #1a1f1c;
+      font-weight: bold;
+      margin-top: 4px;
+      border: 2px solid #e0b860;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 5px #c49b4a; }
+      50% { box-shadow: 0 0 20px #e0b860; }
+    }
     .room-info {
       display: flex;
       justify-content: space-between;
@@ -192,6 +204,11 @@
     <div class="players-list" id="playersContainer"></div>
     <div class="phase-indicator" id="phaseDisplay">⏳ 等待开始...</div>
     
+    <!-- 房主开始游戏按钮 -->
+    <button id="startGameBtn" class="start-btn" style="display:none;">
+      ▶ 开始游戏（仅房主可操作）
+    </button>
+
     <!-- 探索阶段 -->
     <div id="explorePhase" class="clue-area" style="display:none;">
       <div><strong>🔎 探索现场</strong></div>
@@ -224,12 +241,12 @@
 <script>
   // 全局状态
   const appState = {
-    screen: 'login', // login | game
+    screen: 'login',
     nickname: '',
     roomId: '',
     isHost: false,
     players: [],
-    phase: 'lobby', // lobby, explore, discuss, vote, result
+    phase: 'lobby',
     clues: [],
     discoveredClues: [],
     myVote: null,
@@ -247,6 +264,7 @@
   const playerCount = document.getElementById('playerCount');
   const playersContainer = document.getElementById('playersContainer');
   const phaseDisplay = document.getElementById('phaseDisplay');
+  const startGameBtn = document.getElementById('startGameBtn');
   const explorePhase = document.getElementById('explorePhase');
   const discussPhase = document.getElementById('discussPhase');
   const votePhase = document.getElementById('votePhase');
@@ -272,6 +290,14 @@
     playersContainer.innerHTML = players.map(p => 
       `<span class="player-tag">${p.nickname}${p.id === socket.id ? ' (你)' : ''}${p.isHost ? '👑' : ''}</span>`
     ).join('');
+    
+    // 检查自己是否是房主，控制开始按钮显示
+    const me = players.find(p => p.id === socket.id);
+    if (me && me.isHost && appState.phase === 'lobby') {
+      startGameBtn.style.display = 'block';
+    } else if (!me || !me.isHost) {
+      startGameBtn.style.display = 'none';
+    }
   }
 
   function setPhaseUI(phase) {
@@ -279,6 +305,7 @@
     explorePhase.style.display = 'none';
     discussPhase.style.display = 'none';
     votePhase.style.display = 'none';
+    startGameBtn.style.display = 'none'; // 游戏开始后隐藏开始按钮
     
     switch(phase) {
       case 'explore':
@@ -298,10 +325,14 @@
         break;
       default:
         phaseDisplay.textContent = '⏳ 等待房主开始...';
+        // 如果是房主且在等待阶段，显示开始按钮
+        if (appState.isHost) {
+          startGameBtn.style.display = 'block';
+        }
     }
   }
 
-  // 渲染场景按钮 (从服务器获取配置)
+  // 渲染场景按钮
   function renderSceneButtons(scenes) {
     if (!scenes || !Array.isArray(scenes)) return;
     sceneButtons.innerHTML = scenes.map(scene => 
@@ -357,6 +388,11 @@
       if (gameState.phase) setPhaseUI(gameState.phase);
       if (gameState.scenes) renderSceneButtons(gameState.scenes);
       if (gameState.phase === 'vote') renderVoteOptions(players);
+    } else {
+      // 新加入房间，显示开始按钮（仅房主）
+      if (isHost) {
+        startGameBtn.style.display = 'block';
+      }
     }
   });
 
@@ -416,6 +452,15 @@
     socket.emit('joinRoom', { nickname, roomId: roomId || null });
   });
 
+  // 开始游戏按钮
+  startGameBtn.addEventListener('click', () => {
+    if (appState.players.length < 2) {
+      alert('至少需要2名玩家才能开始游戏');
+      return;
+    }
+    socket.emit('startGame', { roomId: appState.roomId });
+  });
+
   sendChatBtn.addEventListener('click', () => {
     const msg = chatInput.value.trim();
     if (!msg) return;
@@ -423,19 +468,20 @@
     chatInput.value = '';
   });
 
+  // 回车发送消息
+  chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      sendChatBtn.click();
+    }
+  });
+
   leaveRoomBtn.addEventListener('click', () => {
     socket.emit('leaveRoom', { roomId: appState.roomId });
     switchScreen('loginScreen');
     appState.roomId = '';
     appState.isHost = false;
+    startGameBtn.style.display = 'none';
   });
-
-  // 房主可以开始游戏 (简单起见，后端自动在2人加入且房主点击时开始，这里增加隐藏按钮逻辑)
-  // 实际通过后端控制，也可以发送start请求。为演示清晰，添加一个开始按钮动态插入。
-  // 为了方便，在后端检测房主发送'startGame'。
-  window.startGameAsHost = function() {
-    socket.emit('startGame', { roomId: appState.roomId });
-  };
 </script>
 </body>
 </html>
