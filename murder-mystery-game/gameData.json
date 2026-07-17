@@ -1,4 +1,3 @@
-// gameData.json 示例配置 (与server.js放在同一目录)
 {
   "scenes": [
     { "id": "hall", "name": "🕍 大厅" },
